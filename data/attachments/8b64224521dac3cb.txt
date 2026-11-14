@@ -1,0 +1,6 @@
+404 Not Found
+https://dummyjson.com/products/999999
+
+{
+  "message": "Product with id '999999' not found"
+}

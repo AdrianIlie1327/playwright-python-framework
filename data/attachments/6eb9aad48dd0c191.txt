@@ -1,0 +1,6 @@
+400 Bad Request
+https://dummyjson.com/auth/login
+
+{
+  "message": "Invalid credentials"
+}

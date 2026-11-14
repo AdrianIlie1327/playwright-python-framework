@@ -1,0 +1,6 @@
+401 Unauthorized
+https://dummyjson.com/auth/me
+
+{
+  "message": "Access Token is required"
+}
