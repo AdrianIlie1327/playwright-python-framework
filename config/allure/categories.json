@@ -1,0 +1,25 @@
+[
+  {
+    "name": "Timeouts / slow environment",
+    "matchedStatuses": ["broken", "failed"],
+    "messageRegex": ".*(Timeout|TimeoutError|timed out).*"
+  },
+  {
+    "name": "Locator not found / UI changed",
+    "matchedStatuses": ["broken", "failed"],
+    "messageRegex": ".*(locator resolved to|waiting for get_by|strict mode violation).*"
+  },
+  {
+    "name": "API contract violation",
+    "matchedStatuses": ["broken", "failed"],
+    "messageRegex": ".*ValidationError.*"
+  },
+  {
+    "name": "Product defects",
+    "matchedStatuses": ["failed"]
+  },
+  {
+    "name": "Test defects",
+    "matchedStatuses": ["broken"]
+  }
+]

@@ -1,0 +1,12 @@
+# Runtime dependencies (pinned for reproducible runs; Dependabot keeps them current)
+playwright==1.65.2
+pytest==9.2.0
+pytest-playwright==0.10.0
+pytest-xdist==3.8.0
+pytest-rerunfailures==16.7
+pytest-html==4.2.0
+allure-pytest==2.16.2
+pydantic==2.14.3
+PyYAML==6.0.3
+python-dotenv==1.2.4
+Faker==40.54.0

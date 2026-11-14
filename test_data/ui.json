@@ -1,0 +1,12 @@
+{
+  "users": {
+    "locked_out": {"username": "locked_out_user", "password": "secret_sauce"},
+    "invalid_password": {"username": "standard_user", "password": "wrong_password"},
+    "unknown_user": {"username": "no_such_user", "password": "secret_sauce"}
+  },
+  "products": {
+    "backpack": "Sauce Labs Backpack",
+    "bike_light": "Sauce Labs Bike Light",
+    "bolt_tshirt": "Sauce Labs Bolt T-Shirt"
+  }
+}

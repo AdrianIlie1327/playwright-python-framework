@@ -1,0 +1,65 @@
+[project]
+name = "playwright-python-framework"
+version = "0.1.0"
+description = "UI + API test automation framework built on Playwright, Pytest and Allure"
+readme = "README.md"
+requires-python = ">=3.11"
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+    # Reporting
+    "--alluredir=reports/allure-results",
+    "--clean-alluredir",
+    "--html=reports/html/report.html",
+    "--self-contained-html",
+    # Playwright artifacts (only kept for failing tests)
+    "--output=reports/playwright",
+    "--screenshot=only-on-failure",
+    "--tracing=retain-on-failure",
+    "--video=retain-on-failure",
+]
+markers = [
+    "ui: browser-based UI tests (auto-applied to tests/ui)",
+    "api: HTTP API tests (auto-applied to tests/api)",
+    "smoke: fast, critical-path checks run on every change",
+    "regression: full regression suite",
+]
+log_cli = false
+log_level = "INFO"
+log_format = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
+log_date_format = "%H:%M:%S"
+filterwarnings = ["error::pytest.PytestUnknownMarkWarning"]
+
+# ---------------------------------------------------------------------------
+# Ruff (lint + format)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["reports"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "SIM",      # simplify
+    "PT",       # pytest style
+    "N",        # pep8 naming
+    "RUF",      # ruff-specific
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["framework"]

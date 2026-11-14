@@ -1,0 +1,279 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 5 * * 1-5" # nightly regression, weekdays 05:00 UTC
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, staging, prod]
+        default: dev
+      browser:
+        description: Browser(s) for the UI suite
+        type: choice
+        options: [all, chromium, firefox, webkit]
+        default: all
+      suite:
+        description: Which suite to run
+        type: choice
+        options: [all, ui, api]
+        default: all
+      markers:
+        description: 'Pytest marker expression, e.g. "smoke" (empty = all tests)'
+        type: string
+        default: ""
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  ALLURE_VERSION: "2.46.2"
+  TEST_ENV: ${{ inputs.environment || 'dev' }}
+  MARKERS: ${{ inputs.markers }}
+  FORCE_COLOR: "1"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - run: pip install -r requirements-dev.txt
+
+      - name: Ruff lint
+        run: ruff check --output-format=github .
+
+      - name: Ruff format
+        run: ruff format --check .
+
+  api-tests:
+    name: API tests (${{ inputs.environment || 'dev' }})
+    needs: lint
+    if: ${{ !inputs.suite || inputs.suite == 'all' || inputs.suite == 'api' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.environment || 'dev' }}
+    env:
+      API_USERNAME: ${{ vars.API_USERNAME }}
+      API_PASSWORD: ${{ secrets.API_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Run API tests
+        run: |
+          args=(tests/api -n auto --reruns 2 --reruns-delay 2)
+          if [ -n "$MARKERS" ]; then args+=(-m "$MARKERS"); fi
+          pytest "${args[@]}"
+
+      - name: Upload Allure results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: allure-results-api
+          path: reports/allure-results
+          retention-days: 7
+
+      - name: Upload HTML report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: html-report-api
+          path: reports/html
+          retention-days: 14
+
+      - name: Upload Playwright traces
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-artifacts-api
+          path: reports/playwright
+          if-no-files-found: ignore
+          retention-days: 7
+
+  ui-tests:
+    name: UI tests (${{ matrix.browser }}, ${{ inputs.environment || 'dev' }})
+    needs: lint
+    if: ${{ !inputs.suite || inputs.suite == 'all' || inputs.suite == 'ui' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment || 'dev' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: ${{ fromJSON((!inputs.browser || inputs.browser == 'all') && '["chromium","firefox","webkit"]' || format('["{0}"]', inputs.browser)) }}
+    env:
+      BROWSER: ${{ matrix.browser }}
+      UI_USERNAME: ${{ vars.UI_USERNAME }}
+      UI_PASSWORD: ${{ secrets.UI_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Install ${{ matrix.browser }}
+        run: playwright install --with-deps "$BROWSER"
+
+      - name: Run UI tests
+        run: |
+          args=(tests/ui --browser "$BROWSER" -n auto --reruns 2 --reruns-delay 2)
+          if [ -n "$MARKERS" ]; then args+=(-m "$MARKERS"); fi
+          pytest "${args[@]}"
+
+      - name: Upload Allure results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: allure-results-ui-${{ matrix.browser }}
+          path: reports/allure-results
+          retention-days: 7
+
+      - name: Upload HTML report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: html-report-ui-${{ matrix.browser }}
+          path: reports/html
+          retention-days: 14
+
+      - name: Upload Playwright traces, videos and screenshots
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-artifacts-ui-${{ matrix.browser }}
+          path: reports/playwright
+          if-no-files-found: ignore
+          retention-days: 7
+
+  report:
+    name: Allure report
+    needs: [api-tests, ui-tests]
+    if: ${{ !cancelled() && (needs.api-tests.result != 'skipped' || needs.ui-tests.result != 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # push the report to the gh-pages branch
+    concurrency:
+      group: allure-report-gh-pages
+      cancel-in-progress: false
+    env:
+      # Only runs on main publish to GitHub Pages; PR runs keep the report as an artifact.
+      PUBLISH: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+      REPORT_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+    steps:
+      - name: Download Allure results
+        uses: actions/download-artifact@v8
+        with:
+          pattern: allure-results-*
+          path: allure-results
+          merge-multiple: true
+
+      - name: Restore report history
+        if: env.PUBLISH == 'true'
+        uses: actions/checkout@v7
+        continue-on-error: true # gh-pages does not exist before the first publish
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Add history, executor and environment info
+        env:
+          BROWSERS: ${{ (!inputs.browser || inputs.browser == 'all') && 'chromium, firefox, webkit' || inputs.browser }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -d gh-pages/history ]; then cp -r gh-pages/history allure-results/history; fi
+          cat > allure-results/executor.json <<EOF
+          {
+            "name": "GitHub Actions",
+            "type": "github",
+            "buildOrder": ${{ github.run_number }},
+            "buildName": "${{ github.workflow }} #${{ github.run_number }} (${{ github.event_name }})",
+            "buildUrl": "$RUN_URL",
+            "reportUrl": "$REPORT_URL",
+            "reportName": "Allure Report"
+          }
+          EOF
+          cat > allure-results/environment.properties <<EOF
+          Environment=$TEST_ENV
+          Browsers=$BROWSERS
+          Branch=${{ github.ref_name }}
+          Commit=${{ github.sha }}
+          Trigger=${{ github.event_name }}
+          EOF
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Allure CLI
+        run: |
+          curl -fsSL "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz" \
+            | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/allure-${ALLURE_VERSION}/bin" >> "$GITHUB_PATH"
+
+      - name: Generate report
+        run: allure generate allure-results --output allure-report --clean
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: allure-report
+          path: allure-report
+          retention-days: 14
+
+      - name: Publish to GitHub Pages
+        if: env.PUBLISH == 'true'
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: allure-report
+          commit_message: "Allure report: ${{ github.workflow }} #${{ github.run_number }}"
+
+      - name: Job summary
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          s = json.load(open("allure-report/widgets/summary.json"))["statistic"]
+          print("## Test results\n")
+          print("| Total | Passed | Failed | Broken | Skipped |")
+          print("|---|---|---|---|---|")
+          print(f"| {s['total']} | {s['passed']} | {s['failed']} | {s['broken']} | {s['skipped']} |")
+          if os.environ["PUBLISH"] == "true":
+              print(f"\n**Allure report:** {os.environ['REPORT_URL']}")
+          else:
+              print("\nAllure report is attached to this run as the `allure-report` artifact.")
+          EOF

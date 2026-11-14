@@ -1,0 +1,12 @@
+# dev environment.
+# The demo targets expose a single public instance, so every environment points at the same
+# hosts here; in a real project each file would hold that environment's URLs and timeouts.
+# Credentials never live here: they come from env vars / .env / CI secrets.
+ui:
+  base_url: https://www.saucedemo.com
+api:
+  base_url: https://dummyjson.com
+timeouts:
+  default_ms: 15000
+  navigation_ms: 30000
+  expect_ms: 5000
