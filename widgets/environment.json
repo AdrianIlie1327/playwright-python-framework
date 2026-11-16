@@ -1,1 +1,1 @@
-[{"values":["dev"],"name":"Environment"},{"values":["chromium, firefox, webkit"],"name":"Browsers"},{"values":["main"],"name":"Branch"},{"values":["f40c63bd5dc2bff3df646de69c4d2f4ab9ff5f35"],"name":"Commit"},{"values":["push"],"name":"Trigger"}]
+[{"values":["dev"],"name":"Environment"},{"values":["chromium, firefox, webkit"],"name":"Browsers"},{"values":["main"],"name":"Branch"},{"values":["f40c63bd5dc2bff3df646de69c4d2f4ab9ff5f35"],"name":"Commit"},{"values":["schedule"],"name":"Trigger"}]
