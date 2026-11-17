@@ -1,1 +1,0 @@
-13:17:58 [32mINFO    [0m framework.api.base_client: GET https://dummyjson.com/products?limit=10&skip=10 -> 200
