@@ -1,0 +1,1 @@
+13:37:53 [32mINFO    [0m framework.api.base_client: DELETE https://dummyjson.com/products/1 -> 200

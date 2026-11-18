@@ -1,0 +1,1 @@
+13:37:53 [32mINFO    [0m framework.api.base_client: POST https://dummyjson.com/auth/login -> 400
