@@ -1,0 +1,2 @@
+15:28:52 [32mINFO    [0m framework.api.base_client: POST https://dummyjson.com/auth/login -> 200
+15:28:52 [32mINFO    [0m framework.api.base_client: GET https://dummyjson.com/auth/me -> 200
