@@ -1,1 +1,0 @@
-15:15:20 [32mINFO    [0m framework.api.base_client: GET https://dummyjson.com/products/30 -> 200
