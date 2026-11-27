@@ -1,0 +1,1 @@
+14:36:09 [32mINFO    [0m framework.api.base_client: GET https://dummyjson.com/auth/me -> 401
